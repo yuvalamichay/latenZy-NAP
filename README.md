@@ -1,4 +1,3 @@
-
 # The *latenZy* repository
 
 Welcome to the *latenZy* repository — a Python and MATLAB toolbox containing two novel, binning-free methods for estimating the onset of neural spiking activity with high temporal precision: `latenZy` and `latenZy2`.
@@ -31,7 +30,7 @@ use_dur/useDur is a window around the event times (e.g., [-0.1 1] or 1 when only
 *Fig. 1: Detecting neural spiking onset using `latenZy`. Red = estimate.*
 
 
-## Estimating when spiking starts to diverge with `latenZy2`
+## Estimating when spiking starts to diverge between conditions with `latenZy2`
 **`latenZy2`** identifies the time point at which neural spiking **begins to diverge between experimental conditions**.
   
 **Python example:**
