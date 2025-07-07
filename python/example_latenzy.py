@@ -15,7 +15,7 @@ from latenzy import latenzy
 
 np.random.seed(1)
 
-data_path = os.path.dirname(os.path.dirname(__file__))  # up two levels to latenZy
+data_path = os.path.dirname(os.path.dirname(__file__))
 mat_data = sio.loadmat(os.path.join(data_path, 'example_data', 'Topo2_20220126_AP.mat'), struct_as_record=False, squeeze_me=True)
 sAP = mat_data['sAP']
 
