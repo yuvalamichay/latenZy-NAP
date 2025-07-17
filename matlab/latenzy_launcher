@@ -1,0 +1,187 @@
+clearvars; clc;
+
+% Load data
+load('stimTimesConverted.mat', 'stimTimesConverted');
+load('spikeTimesConvertedCleaned.mat', 'spikeTimesConvertedCleaned');
+
+eventTimes = stimTimesConverted;
+numChannels = numel(spikeTimesConvertedCleaned);
+
+% Launch parameters
+useDur = 0.5;
+resampNum = 100;
+jitterSize = 2;
+peakAlpha = 0.05;
+doStitch = true;
+useParPool = false;
+useDirectQuant = false;
+restrictNeg = true;
+makePlots = true;
+
+calculatedLatencies = struct([]);
+
+% Create the folder if it doesn't exist
+if ~exist('latenzyPlots', 'dir')
+    mkdir('latenzyPlots');
+end
+
+for ch = 1:numChannels
+    spikeTimes = spikeTimesConvertedCleaned{ch};
+    if isempty(spikeTimes)
+        latency = NaN;
+        sLatenzy = [];
+    else
+        [latency, sLatenzy] = latenzy(spikeTimes, eventTimes, useDur, resampNum, ...
+            jitterSize, peakAlpha, doStitch, useParPool, useDirectQuant, restrictNeg, makePlots);
+
+        % Check and export only if valid
+        if makePlots && isfield(sLatenzy, 'figHandles') && ~isempty(sLatenzy.figHandles)
+            for fh = sLatenzy.figHandles(:)' % Loop over all handles if needed
+                if isgraphics(fh, 'figure') % Only if figure is open and valid
+                    exportgraphics(fh, fullfile('latenzyPlots', ...
+                        sprintf('Duration%d_ms_Ch%d.png', round(useDur*1000), ch)));
+                    break; % Only the first valid figure
+                end
+            end
+        end
+    end
+    calculatedLatencies(ch).electrode = ids(ch);
+    calculatedLatencies(ch).latency = latency;
+    calculatedLatencies(ch).sLatenzy = sLatenzy;
+end
+%%
+% --- Remap electrode numbers according to array layout ---
+
+% Channel indices as in the left panel (channel index)
+indices = [24 26 29 32 35 37, ...
+           21 22 25 30 31 36 39 40, ...
+           19 20 23 28 33 38 41 42, ...
+           16 17 18 27 34 43 44 45, ...
+           15 14 13 4 57 48 47 46, ...
+           12 11 8 3 58 53 50 49, ...
+           10 9 6 1 60 55 52 51, ...
+           7 5 2 59 56 54];
+
+% Channel IDs as in the right panel (channel ID)
+ids = [21 31 41 51 61 71, ...
+       12 22 32 42 52 62 72 82, ...
+       13 23 33 43 53 63 73 83, ...
+       14 24 34 44 54 64 74 84, ...
+       15 25 35 45 55 65 75 85, ...
+       16 26 36 46 56 66 76 86, ...
+       17 27 37 47 57 67 77 87, ...
+       28 38 48 58 68 78];
+
+for k = 1:numel(calculatedLatencies)
+    idx = find(indices == calculatedLatencies(k).electrode, 1);
+    if ~isempty(idx)
+        calculatedLatencies(k).electrode = ids(idx);
+    else
+        warning('Electrode %d not found in mapping.', calculatedLatencies(k).electrode);
+    end
+end
+
+save('calculatedLatencies.mat', 'calculatedLatencies');
+fprintf('Saved calculatedLatencies.mat with latenzy results for all channels.\n');
+
+%%
+clearvars; clc;
+
+% Load data
+load('stimTimesConverted.mat', 'stimTimesConverted');
+load('spikeTimesConvertedCleaned.mat', 'spikeTimesConvertedCleaned');
+
+% Electrode/channel mapping from the provided image:
+% indices: channel indices as in left panel (channel index)
+indices = [24 26 29 32 35 37, ...
+           21 22 25 30 31 36 39 40, ...
+           19 20 23 28 33 38 41 42, ...
+           16 17 18 27 34 43 44 45, ...
+           15 14 13 4 57 48 47 46, ...
+           12 11 8 3 58 53 50 49, ...
+           10 9 6 1 60 55 52 51, ...
+           7 5 2 59 56 54];
+
+% ids: channel IDs as in right panel (channel ID)
+ids = [21 31 41 51 61 71, ...
+       12 22 32 42 52 62 72 82, ...
+       13 23 33 43 53 63 73 83, ...
+       14 24 34 44 54 64 74 84, ...
+       15 25 35 45 55 65 75 85, ...
+       16 26 36 46 56 66 76 86, ...
+       17 27 37 47 57 67 77 87, ...
+       28 38 48 58 68 78];
+
+% Reorder spikeTimesConvertedCleaned to match channel IDs (right panel)
+spikeTimesByID = cell(size(ids));
+for i = 1:numel(ids)
+    idx = find(indices == ids(i), 1);
+    if ~isempty(idx)
+        spikeTimesByID{i} = spikeTimesConvertedCleaned{idx};
+    else
+        spikeTimesByID{i} = [];
+    end
+end
+spikeTimesConvertedCleaned = spikeTimesByID;
+
+% (Assuming stimTimesConverted doesn't need remapping per channel;
+% if you need per-channel event times, apply similar logic.)
+
+eventTimes = stimTimesConverted;
+numChannels = numel(spikeTimesConvertedCleaned);
+
+% Launch parameters
+useDur = 0.5;
+resampNum = 100;
+jitterSize = 2;
+peakAlpha = 0.05;
+doStitch = true;
+useParPool = false;
+useDirectQuant = false;
+restrictNeg = true;
+makePlots = true;
+
+calculatedLatencies = struct([]);
+
+% Create the folder if it doesn't exist
+if ~exist('latenzyPlots', 'dir')
+    mkdir('latenzyPlots');
+end
+
+for ch = 1:numChannels
+    spikeTimes = spikeTimesConvertedCleaned{ch};
+
+    % Record currently open figures before latenzy
+    figsBefore = findall(0, 'Type', 'figure');
+    
+    if isempty(spikeTimes)
+        latency = NaN;
+        sLatenzy = [];
+    else
+        [latency, sLatenzy] = latenzy(spikeTimes, eventTimes, useDur, resampNum, ...
+            jitterSize, peakAlpha, doStitch, useParPool, useDirectQuant, restrictNeg, makePlots);
+
+        % Record open figures after latenzy
+        figsAfter = findall(0, 'Type', 'figure');
+        % Identify new figures
+        newFigs = setdiff(figsAfter, figsBefore);
+
+        % Save all new figures
+        for fIdx = 1:numel(newFigs)
+            fh = newFigs(fIdx);
+            if isgraphics(fh, 'figure')
+                exportgraphics(fh, fullfile('latenzyPlots', ...
+                    sprintf('Duration%d_ms_Ch%d_fig%d.png', round(useDur*1000), ids(ch), fIdx)));
+                % Optionally close to avoid too many open figures:
+                close(fh);
+            end
+        end
+    end
+
+    calculatedLatencies(ch).electrode = ids(ch); % Use channel ID directly
+    calculatedLatencies(ch).latency = latency;
+    calculatedLatencies(ch).sLatenzy = sLatenzy;
+end
+
+save('calculatedLatencies.mat', 'calculatedLatencies');
+fprintf('Saved calculatedLatencies.mat with latenzy results for all channels.\n');
