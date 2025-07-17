@@ -1,4 +1,4 @@
-clearvars; clc;
+clearvars -except spikeTimesConvertedCleaned stimTimesConverted
 
 % Load data
 load('stimTimesConverted.mat', 'stimTimesConverted');
@@ -39,7 +39,7 @@ eventTimes = stimTimesConverted;
 spikeTimesAll = spikeTimesConvertedCleaned; % cell array: one cell per channel
 
 % Define time windows (in seconds)
-window_durations = 0.01:0.005:0.2;
+window_durations = 0.01:0.02:1;
 
 % Parameters for latenzy
 resampNum = 100;
