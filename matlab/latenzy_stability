@@ -1,0 +1,48 @@
+% Launches latenZy with specific window values and returns 
+% plot of time window (ms) vs calculated latenzy (ms) to 
+% test latenzy calculation stability over different time window
+
+clearvars; clc;
+
+% Load data
+load('stimTimesConverted.mat', 'stimTimesConverted');
+load('spikeTimesConvertedCleaned.mat', 'spikeTimesConvertedCleaned');
+
+eventTimes = stimTimesConverted;
+spikeTimes = spikeTimesConvertedCleaned;
+
+%  pick a specific channel, e.g., channel 1:
+if iscell(spikeTimes)
+    ch = 5; % Change this to the channel you want to analyze
+    spikeTimes = spikeTimes{ch};
+end
+
+% Define different post-stimulus windows (in seconds)
+window_durations =  0.01:0.005:0.2; % example values
+latencies = nan(size(window_durations));
+
+% Parameters for latenzy
+resampNum = 100;
+jitterSize = 2;
+peakAlpha = 0.05;
+doStitch = true;
+useParPool = false;
+useDirectQuant = false;
+restrictNeg = true;
+makePlots = false; % set to false to suppress multiple plots
+
+for i = 1:length(window_durations)
+    useDur = window_durations(i); % post-stimulus window: [0, useDur]
+    [latency, ~] = latenzy(spikeTimes, eventTimes, useDur, resampNum, jitterSize, peakAlpha, ...
+                           doStitch, useParPool, useDirectQuant, restrictNeg, makePlots);
+    latencies(i) = latency;
+end
+
+% Plot latency as a function of time window post-stimulus
+figure;
+plot(window_durations*1000, latencies*1000, '-o', 'LineWidth', 1.5, 'MarkerSize', 8);
+xlabel('Time window post-stimulus (ms) inputted into LatenZy');
+ylabel('Estimated latency (ms)');
+title('Latency vs. time window post-stimulus');
+grid on;
+
