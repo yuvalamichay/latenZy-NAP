@@ -1,8 +1,8 @@
 clear; clc;
 
 % --- USER PARAMETERS ---
-spikeFile = 'OWT220207_1I_DIV63_HUB63_6UA_Cspikes_L0_RP2.mat_Nortefact.mat';
-rawFile   = 'OWT220207_1I_DIV63_HUB63_6UA.mat';
+spikeFile = 'OWT220207_1I_DIV63_PER37_6UA_Cspikes_L0_RP2.mat_Nortefact.mat';
+rawFile   = 'OWT220207_1I_DIV63_PER37_6UA.mat';
 artifact_window_ms = [0, 2]; % artifact window around stim (in ms)
 fs = 25000; % sample rate (Hz)
 spikeMethod = 'bior1p5'; % adjust as needed
@@ -110,7 +110,7 @@ save('stimTimesConverted.mat', 'stimTimesConverted');
 
 fprintf('Saved spikeTimesConvertedCleaned.mat (all channels) and eventTimes.mat.\n');
 
-%%
+%% LAUNCH LATENZY
 clearvars; clc;
 
 % Load data
@@ -157,7 +157,7 @@ eventTimes = stimTimesConverted;
 numChannels = numel(spikeTimesConvertedCleaned);
 
 % Launch parameters
-useDur = 0.05; %in seconds
+useDur = 0.5; %in seconds
 resampNum = 100;
 jitterSize = 2;
 peakAlpha = 0.05;
@@ -198,7 +198,7 @@ for ch = 1:numChannels
             fh = newFigs(fIdx);
             if isgraphics(fh, 'figure')
                 exportgraphics(fh, fullfile(plotFolder, ...
-                    sprintf('Duration%d_ms_Ch%d_fig%d.png', round(useDur*1000), ids(ch), fIdx)));
+                    sprintf('Duration%dto%d_ms_Ch%d_fig%d.png', round(useDur(1)*1000), round(useDur(2)*1000), ids(ch), fIdx)));
                 % Optionally close to avoid too many open figures:
                 close(fh);
             end
