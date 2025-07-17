@@ -44,7 +44,7 @@ eventTimes = stimTimesConverted;
 numChannels = numel(spikeTimesConvertedCleaned);
 
 % Launch parameters
-useDur = 0.05; %in seconds
+useDur = [-0.01 0.05]; %in seconds
 resampNum = 100;
 jitterSize = 2;
 peakAlpha = 0.05;
@@ -84,8 +84,8 @@ for ch = 1:numChannels
         for fIdx = 1:numel(newFigs)
             fh = newFigs(fIdx);
             if isgraphics(fh, 'figure')
-                exportgraphics(fh, fullfile(plotFolder, ...
-                    sprintf('Duration%d_ms_Ch%d_fig%d.png', round(useDur*1000), ids(ch), fIdx)));
+              exportgraphics(fh, fullfile(plotFolder, ...
+                    sprintf('Duration%dto%d_ms_Ch%d_fig%d.png', round(useDur(1)*1000), round(useDur(2)*1000), ids(ch), fIdx)));
                 % Optionally close to avoid too many open figures:
                 close(fh);
             end
