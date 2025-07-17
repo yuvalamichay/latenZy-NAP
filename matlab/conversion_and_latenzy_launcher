@@ -1,17 +1,18 @@
 clear; clc;
 
 % --- USER PARAMETERS ---
-spikeFile = 'OWT220207_1I_DIV63_PER37_6UA_Cspikes_L0_RP2.mat_Nortefact.mat';
-rawFile   = 'OWT220207_1I_DIV63_PER37_6UA.mat';
+spikeFile = 'OWT220207_1I_DIV63_HUB63_6UA_Cspikes_L0_RP2.mat_Nortefact.mat';
+rawFile   = 'OWT220207_1I_DIV63_HUB63_6UA.mat';
 artifact_window_ms = [0, 2]; % artifact window around stim (in ms)
 fs = 25000; % sample rate (Hz)
 spikeMethod = 'bior1p5'; % adjust as needed
 numChannels = 60; % adjust as needed
+
+% --- ENABLE OR DISABLE SPIKE FREQUENCY REMOVAL ---
+DO_SPIKE_FREQ_REMOVAL = true; % <-- Set to false to skip spike frequency filtering
+
 %%
 % --- CONVERT SPIKE TIMES ---
-% This section either loads the MEA-NAP 'spikeTimes' data structure and renames it to
-% spiketimesconverted or detects Mona's 'spikes' structure, converts it to
-% the MEA-NAP format, and calls it spike times converted
 S = load(spikeFile);
 if isfield(S, 'spikeTimes')
     spikeTimesConverted = S.spikeTimes;
@@ -27,6 +28,7 @@ elseif isfield(S, 'spikes')
 else
     error('Neither ''spikeTimes'' nor ''spikes'' found in file.');
 end
+
 %%
 % --- ESTIMATE STIM TIMES ---
 R = load(rawFile);
@@ -37,6 +39,7 @@ else
 end
 
 [num_samples, ~] = size(dat);
+recording_length_sec = num_samples / fs;
 
 stimThreshold = -1000; % adjust as needed
 flat_window_ms = 1.5;
@@ -103,6 +106,29 @@ for ch = 1:numChannels
     end
 end
 
+%% --- EXCLUDE ELECTRODES WITH FIRING RATE < 0.1 Hz (OPTIONAL) ---
+min_frequency = 0.1; % Hz
+excluded_count = 0;
+firingRates = zeros(1, numChannels);
+
+if DO_SPIKE_FREQ_REMOVAL
+    for ch = 1:numChannels
+        spikes = spikeTimesConvertedCleaned{ch};
+        firingRates(ch) = numel(spikes) / recording_length_sec;
+        if ~isempty(spikes) && firingRates(ch) < min_frequency
+            spikeTimesConvertedCleaned{ch} = [];
+            excluded_count = excluded_count + 1;
+        end
+    end
+    fprintf('Excluded %d electrodes with firing rates below %.2f Hz.\n', excluded_count, min_frequency);
+else
+    for ch = 1:numChannels
+        spikes = spikeTimesConvertedCleaned{ch};
+        firingRates(ch) = numel(spikes) / recording_length_sec;
+    end
+    fprintf('Spike frequency exclusion skipped; all electrodes retained.\n');
+end
+
 %%
 % --- SAVE OUTPUT ---
 save('spikeTimesConvertedCleaned.mat', 'spikeTimesConvertedCleaned');
@@ -111,14 +137,9 @@ save('stimTimesConverted.mat', 'stimTimesConverted');
 fprintf('Saved spikeTimesConvertedCleaned.mat (all channels) and eventTimes.mat.\n');
 
 %% LAUNCH LATENZY
-clearvars; clc;
-
-% Load data
-load('stimTimesConverted.mat', 'stimTimesConverted');
-load('spikeTimesConvertedCleaned.mat', 'spikeTimesConvertedCleaned');
+clearvars -except spikeTimesConvertedCleaned stimTimesConverted firingRates;
 
 % Electrode/channel mapping from the provided image:
-% indices: channel indices as in left panel (channel index)
 indices = [24 26 29 32 35 37, ...
            21 22 25 30 31 36 39 40, ...
            19 20 23 28 33 38 41 42, ...
@@ -128,7 +149,6 @@ indices = [24 26 29 32 35 37, ...
            10 9 6 1 60 55 52 51, ...
            7 5 2 59 56 54];
 
-% ids: channel IDs as in right panel (channel ID)
 ids = [21 31 41 51 61 71, ...
        12 22 32 42 52 62 72 82, ...
        13 23 33 43 53 63 73 83, ...
@@ -138,26 +158,27 @@ ids = [21 31 41 51 61 71, ...
        17 27 37 47 57 67 77 87, ...
        28 38 48 58 68 78];
 
-% Reorder spikeTimesConvertedCleaned to match channel IDs (right panel)
+% Reorder spikeTimesConvertedCleaned and firingRates to match channel IDs (right panel)
 spikeTimesByID = cell(size(ids));
+firingRatesByID = zeros(size(ids));
 for i = 1:numel(ids)
     idx = find(indices == ids(i), 1);
     if ~isempty(idx)
         spikeTimesByID{i} = spikeTimesConvertedCleaned{idx};
+        firingRatesByID(i) = firingRates(idx);
     else
         spikeTimesByID{i} = [];
+        firingRatesByID(i) = 0;
     end
 end
 spikeTimesConvertedCleaned = spikeTimesByID;
-
-% (Assuming stimTimesConverted doesn't need remapping per channel;
-% if you need per-channel event times, apply similar logic.)
+firingRates = firingRatesByID;
 
 eventTimes = stimTimesConverted;
 numChannels = numel(spikeTimesConvertedCleaned);
 
 % Launch parameters
-useDur = 0.5; %in seconds
+useDur = [0 0.05]; %in seconds, use a window [] for the purposes of this script
 resampNum = 100;
 jitterSize = 2;
 peakAlpha = 0.05;
@@ -198,9 +219,8 @@ for ch = 1:numChannels
             fh = newFigs(fIdx);
             if isgraphics(fh, 'figure')
                 exportgraphics(fh, fullfile(plotFolder, ...
-                    sprintf('Duration%dto%d_ms_Ch%d_fig%d.png', round(useDur(1)*1000), round(useDur(2)*1000), ids(ch), fIdx)));
-                % Optionally close to avoid too many open figures:
-                close(fh);
+                    sprintf('Duration%dto%d_ms_Ch%d_fig%d.png', ...
+                    round(useDur(1)*1000), round(useDur(2)*1000), ids(ch), fIdx)));
             end
         end
     end
@@ -208,6 +228,7 @@ for ch = 1:numChannels
     calculatedLatencies(ch).electrode = ids(ch); % Use channel ID directly
     calculatedLatencies(ch).latency = latency;
     calculatedLatencies(ch).sLatenzy = sLatenzy;
+    calculatedLatencies(ch).firingRate = firingRates(ch); % Save firing rate
 end
 
 save('calculatedLatencies.mat', 'calculatedLatencies');
