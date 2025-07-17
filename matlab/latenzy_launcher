@@ -44,7 +44,7 @@ eventTimes = stimTimesConverted;
 numChannels = numel(spikeTimesConvertedCleaned);
 
 % Launch parameters
-useDur = 0.5;
+useDur = 0.05; %in seconds
 resampNum = 100;
 jitterSize = 2;
 peakAlpha = 0.05;
@@ -57,7 +57,7 @@ makePlots = true;
 calculatedLatencies = struct([]);
 
 % Create a date-stamped plot folder for this run
-plotFolder = ['latenzyplot' datestr(now, 'ddmmmyy')];
+plotFolder = ['latenzyplot_' datestr(now, 'ddmmmyy_HH:MM')];
 if ~exist(plotFolder, 'dir')
     mkdir(plotFolder);
 end
