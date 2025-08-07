@@ -45,7 +45,7 @@ flat_thresh = 0.05; % Not used by 'longblank' method
 flat_search_window_ms = 100; % Not used by 'longblank' method
 
 % --- Latenzy Function Parameters ---
-useDur = [-0.2 0.05]; % Analysis window in seconds
+useDur = [-0.02 0.05]; % Analysis window in seconds
 resampNum = 100;
 jitterSize = 2;
 peakAlpha = 0.05;
@@ -55,6 +55,9 @@ useDirectQuant = false;
 restrictNeg = true;
 
 % --- Electrode/Channel Mapping ---
+% 'indices' are the original channel numbers from the recording system (1-based).
+% 'ids' are the corresponding electrode labels you want to use for plotting and output.
+% The order matters: indices(i) maps to ids(i).
 indices = [24 26 29 32 35 37, 21 22 25 30 31 36 39 40, 19 20 23 28 33 38 41 42, 16 17 18 27 34 43 44 45, 15 14 13 4 57 48 47 46, 12 11 8 3 58 53 50 49, 10 9 6 1 60 55 52 51, 7 5 2 59 56 54];
 ids = [21 31 41 51 61 71, 12 22 32 42 52 62 72 82, 13 23 33 43 53 63 73 83, 14 24 34 44 54 64 74 84, 15 25 35 45 55 65 75 85, 16 26 36 46 56 66 76 86, 17 27 37 47 57 67 77 87, 28 38 48 58 68 78];
 
@@ -136,27 +139,38 @@ for k = 1:numel(filePairs)
         spikeTimesConvertedCleaned{ch} = unique(vertcat(allCleanSpikesCell{:}));
     end
 
-    %% 4. REORDER CHANNELS AND CALCULATE FIRING RATES
-    spikeTimesByID = cell(size(ids));
-    firingRatesByID = zeros(size(ids));
-    for i = 1:numel(ids)
-        idx = find(indices == ids(i), 1);
-        if ~isempty(idx)
-            spikeTimesByID{i} = spikeTimesConvertedCleaned{idx};
-            firingRatesByID(i) = numel(spikeTimesConvertedCleaned{idx}) / recording_length_sec;
+    %% 4. CALCULATE FIRING RATES (ON ORIGINAL CHANNELS)
+    fprintf('Calculating firing rates...\n');
+    firingRates = zeros(1, numChannels);
+    for ch = 1:numChannels
+        if ~isempty(spikeTimesConvertedCleaned{ch})
+            firingRates(ch) = numel(spikeTimesConvertedCleaned{ch}) / recording_length_sec;
+        else
+            firingRates(ch) = 0;
         end
     end
-    spikeTimesConvertedCleaned = spikeTimesByID;
-    firingRates = firingRatesByID;
     
-    %% 5. CALCULATE AND PLOT LATENCY FOR EACH CHANNEL
+    %% 5. CALCULATE AND PLOT LATENCY, APPLYING ELECTRODE MAPPING FOR OUTPUT
     fprintf('Calculating latencies and generating plots...\n');
     latencyData = struct([]);
+    structIdx = 1; % Index for latencyData struct
     
     % --- Set default figure visibility to 'off' for batch processing ---
     set(0, 'DefaultFigureVisible', 'off');
     
-    for ch = 1:numel(ids)
+    % Loop through all original channels
+    for ch = 1:numChannels
+        % Find if the current channel has a mapping to an electrode ID
+        map_idx = find(indices == ch, 1);
+        
+        % If this channel is not in our 'indices' map, skip it
+        if isempty(map_idx)
+            continue;
+        end
+        
+        % Get the corresponding electrode ID for filenames and struct
+        electrodeID = ids(map_idx);
+        
         spikeTimes = spikeTimesConvertedCleaned{ch};
         
         if isempty(spikeTimes)
@@ -186,22 +200,25 @@ for k = 1:numel(filePairs)
                 
                 fh = gcf; % Get handle to the current (invisible) figure
                 
-                % Add a title with the final, adjusted latency
-                titleStr = sprintf('Final Adjusted Latency: %.2f ms', adjustedLatency * 1000);
+                % Add a title with the final, adjusted latency and electrode ID
+                titleStr = sprintf('Electrode %d - Final Adjusted Latency: %.2f ms', electrodeID, adjustedLatency * 1000);
                 sgtitle(fh, titleStr, 'Color', 'k', 'FontWeight', 'bold');
                 
-                % Save the modified figure
-                plotFileName = sprintf('Latency_Ch%d.png', ids(ch));
+                % Save the modified figure using the electrode ID
+                plotFileName = sprintf('Latency_Elec%d.png', electrodeID);
                 exportgraphics(fh, fullfile(outputDir, plotFileName));
                 close(fh); % Close invisible figure after saving
             end
         end
 
-        latencyData(ch).electrode = ids(ch);
-        latencyData(ch).latency_compressed = latency_compressed;
-        latencyData(ch).latency = adjustedLatency;
-        latencyData(ch).sLatenzy = sLatenzy;
-        latencyData(ch).firingRate = firingRates(ch);
+        % Save data to the struct, using the correct electrode ID
+        latencyData(structIdx).electrode = electrodeID;
+        latencyData(structIdx).latency_compressed = latency_compressed;
+        latencyData(structIdx).latency = adjustedLatency;
+        latencyData(structIdx).sLatenzy = sLatenzy;
+        latencyData(structIdx).firingRate = firingRates(ch); % Firing rate from original channel
+        
+        structIdx = structIdx + 1; % Increment struct index
     end
     
     % --- Restore default figure visibility ---
