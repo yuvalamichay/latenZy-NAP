@@ -110,7 +110,7 @@ if ~exist('useDirectQuant','var') || isempty(useDirectQuant)
 end
 
 %allowNegative
-if ~exist('restrictNegative','var') || isempty(restrictNeg)
+if ~exist('restrictNeg','var') || isempty(restrictNeg)
     restrictNeg = false;
 end
 
